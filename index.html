@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Messages By Hour using Gmail API</title>
+    <meta charset='utf-8' />
+    <script src="http://d3js.org/d3.v4.min.js"></script>
+  <script src="http://dimplejs.org/dist/dimple.v2.3.0.min.js"></script>
+  </head>
+  <body>
+    <h2 align="center">Messages By Hour using Gmail API</h2>
+
+    <!--Add buttons to initiate auth sequence and sign out-->
+    <button id="authorize-button" style="display: none;  margin-left: 46%">Authorize</button>
+    <button id="signout-button"  style="display: none;  margin-left: 46%">Sign Out</button>
+    <div class="plot" style="width: 800px; height: 600px " margin: auto;></div>
+    
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/async/2.6.0/async.js"></script>
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+    <script type="text/javascript">
+      // Client ID and API key from the Developer Console
+      var CLIENT_ID = '191434131534-j2vj1hpa1vmaemq7po0i6okgakqdli6k.apps.googleusercontent.com';
+      var apiKey = 'AIzaSyCBs72r3k-swk7S71EthQ4kPVpeMLpym9c';
+      // Array of API discovery doc URLs for APIs used by the quickstart
+      var DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest"];
+
+      // Authorization scopes required by the API; multiple scopes can be
+      // included, separated by spaces.
+      var SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
+
+      var authorizeButton = document.getElementById('authorize-button');
+      var signoutButton = document.getElementById('signout-button');
+      var Map1 = {};
+        Map1["00"] = 0;
+        Map1["01"] = 0;
+        Map1["02"] = 0;
+        Map1["03"] = 0;
+        Map1["04"] = 0;
+        Map1["05"] = 0;
+        Map1["06"] = 0;
+        Map1["07"] = 0;
+        Map1["08"] = 0;
+        Map1["09"] = 0;
+        Map1["10"] = 0;
+        Map1["11"] = 0;
+        Map1["12"] = 0;
+        Map1["13"] = 0;
+        Map1["14"] = 0;
+        Map1["15"] = 0;
+        Map1["16"] = 0;
+        Map1["17"] = 0;
+        Map1["18"] = 0;
+        Map1["19"] = 0;
+        Map1["20"] = 0;
+        Map1["21"] = 0;
+        Map1["22"] = 0;
+        Map1["23"] = 0;
+      var total_mails=0;
+
+      /**
+       *  On load, called to load the auth2 library and API client library.
+       */
+      function handleClientLoad() {
+        gapi.client.setApiKey(apiKey);
+        gapi.load('client:auth2', initClient);
+      }
+
+      /**
+       *  Initializes the API client library and sets up sign-in state
+       *  listeners.
+       */
+      function initClient() {
+        gapi.client.init({
+          //discoveryDocs: DISCOVERY_DOCS,
+          clientId: CLIENT_ID,
+          scope: SCOPES
+        }).then(function () {
+          // Listen for sign-in state changes.
+          gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+
+          // Handle the initial sign-in state.
+          updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+          authorizeButton.onclick = handleAuthClick;
+          signoutButton.onclick = handleSignoutClick;
+        });
+      }
+
+      /**
+       *  Called when the signed in status changes, to update the UI
+       *  appropriately. After a sign-in, the API is called.
+       */
+      function updateSigninStatus(isSignedIn) {
+        if (isSignedIn) {
+          authorizeButton.style.display = 'none';
+          signoutButton.style.display = 'block';
+          //makeGraph();
+          $('.plot').show();
+          gapi.client.load('gmail', 'v1', makeGraph);
+        } 
+        else {
+          authorizeButton.style.display = 'block';
+          signoutButton.style.display = 'none';
+          /*var divsToHide = document.getElementsByClassName("plot");
+          for(var i = 0; i < divsToHide.length; i++){
+              divsToHide[i].style.visibility="hidden";
+          }*/
+          $('.plot').empty();
+          //$("table").hide();
+        }
+      }
+
+      /**
+       *  Sign in the user upon button click.
+       */
+      function handleAuthClick(event) {
+        gapi.auth2.getAuthInstance().signIn();
+      }
+
+      /**
+       *  Sign out the user upon button click.
+       */
+      function handleSignoutClick(event) {
+        gapi.auth2.getAuthInstance().signOut();
+      }
+
+      /*Print the graph for messages in the authorized user's inbox. */
+      function makeGraph() {
+        var today = new Date();
+        var dd = today.getDate()+1;
+        var mm = today.getMonth()+1; //January is 0!
+        var yyyy = today.getFullYear();
+        var pdd = today.getDate();
+        var pmm = (today.getMonth())%12;
+        if(dd<10) {
+            dd = '0'+dd
+        } 
+        if(mm<10) {
+            mm = '0'+mm
+        } 
+        today = yyyy + '/' + mm + '/' + dd;
+        var pre_month = yyyy + '/' + pmm + '/' + pdd;
+
+        var request = gapi.client.gmail.users.messages.list({
+          'userId': 'me',
+          'labelIds': 'INBOX',
+          'q': "after:"+pre_month+" before:"+today
+        });
+        
+        request.execute(function(response) {
+          var arr = []
+          $.each(response.messages, function() {
+            var messageRequest = gapi.client.gmail.users.messages.get({
+              'userId': 'me',
+              'id': this.id
+            });
+            
+            arr.push(messageRequest)
+            //messageRequest.execute(appendMessageRow)
+          });
+          //console.log(arr)
+  
+          async.every(arr, function(x, callback) {
+            //console.log(x)
+            x.execute(appendMessageRow.bind({'cb': callback}))
+          }, function(error, result){
+                //console.log(Map1, error, result)
+                var svg = dimple.newSvg(".plot", 800, 600);
+                //console.log(Map1);
+                var data = [
+                { "HOURS":"00:00", "No_of_MAILS":Map1["00"] },
+                { "HOURS":"01:00", "No_of_MAILS":Map1["01"] },
+                { "HOURS":"02:00", "No_of_MAILS":Map1["02"] },
+                { "HOURS":"03:00", "No_of_MAILS":Map1["03"] },
+                { "HOURS":"04:00", "No_of_MAILS":Map1["04"] },
+                { "HOURS":"05:00", "No_of_MAILS":Map1["05"] },
+                { "HOURS":"06:00", "No_of_MAILS":Map1["06"] },
+                { "HOURS":"07:00", "No_of_MAILS":Map1["07"] },
+                { "HOURS":"08:00", "No_of_MAILS":Map1["08"] },
+                { "HOURS":"09:00", "No_of_MAILS":Map1["09"] },
+                { "HOURS":"10:00", "No_of_MAILS":Map1["10"] },
+                { "HOURS":"11:00", "No_of_MAILS":Map1["11"] },
+                { "HOURS":"12:00", "No_of_MAILS":Map1["12"] },
+                { "HOURS":"13:00", "No_of_MAILS":Map1["13"] },
+                { "HOURS":"14:00", "No_of_MAILS":Map1["14"] },
+                { "HOURS":"15:00", "No_of_MAILS":Map1["15"] },
+                { "HOURS":"16:00", "No_of_MAILS":Map1["16"] },
+                { "HOURS":"17:00", "No_of_MAILS":Map1["17"] },
+                { "HOURS":"18:00", "No_of_MAILS":Map1["18"] },
+                { "HOURS":"19:00", "No_of_MAILS":Map1["19"] },
+                { "HOURS":"20:00", "No_of_MAILS":Map1["20"] },
+                { "HOURS":"21:00", "No_of_MAILS":Map1["21"] },
+                { "HOURS":"22:00", "No_of_MAILS":Map1["22"] },
+                { "HOURS":"23:00", "No_of_MAILS":Map1["23"] }
+                ];
+                var chart = new dimple.chart(svg, data);
+                var x=chart.addCategoryAxis("x", "HOURS");
+                x.addOrderRule("HOURS");
+                chart.addMeasureAxis("y", "No_of_MAILS");
+                chart.addSeries(null, dimple.plot.line);
+                chart.setBounds(60, 30, 505, 305);
+                chart.draw();
+
+                //find max
+                //var m=Math.max(...Map1);
+                //document.write("<h4>Large number of mails received during </h4>"+m);
+              })
+        }) 
+      }
+
+      function appendMessageRow(message) {
+        getHeader(message.payload.headers, 'Date')
+        this.cb(null, true)
+      }
+      function getHeader(headers, index) {
+        var header = '';
+        //var time;
+        $.each(headers, function(){
+          if(this.name === index){
+            header = this.value;
+            //time= header.substring(16, 25);
+            var temp=header.substring(17,19);
+            if(temp=="0:")
+              temp="00"; 
+            //console.log(temp);
+            Map1[temp]++;
+            total_mails++;
+            //console.log(total_mails)
+            //console.log(Map["time.substring(0,1)"]);
+          }
+        });
+        //return header;
+        //console.log(Map1);
+        //return time;
+      }
+
+    </script>
+
+    <script src="https://apis.google.com/js/client.js?onload=handleClientLoad"></script>
+  </body>
+</html>
