@@ -30,6 +30,7 @@
       var authorizeButton = document.getElementById('authorize-button');
       var signoutButton = document.getElementById('signout-button');
       var Map1 = {};
+      function Map1_init(){
         Map1["00"] = 0;
         Map1["01"] = 0;
         Map1["02"] = 0;
@@ -54,6 +55,7 @@
         Map1["21"] = 0;
         Map1["22"] = 0;
         Map1["23"] = 0;
+      }
       var total_mails=0;
 
       /**
@@ -93,6 +95,7 @@
           authorizeButton.style.display = 'none';
           signoutButton.style.display = 'block';
           //makeGraph();
+          Map1_init();
           $('.plot').show();
           gapi.client.load('gmail', 'v1', makeGraph);
         } 
